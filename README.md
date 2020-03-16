@@ -1,2 +1,3 @@
-# Yuhu-kth
-Speech and speaker recognition 
+# Speech and speaker recognition 
+## lab1
+
