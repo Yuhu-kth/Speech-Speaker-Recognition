@@ -1,8 +1,10 @@
-# DT2119, Lab 1 Feature Extraction
+  # DT2119, Lab 1 Feature Extraction
 
 # Function given by the exercise ----------------------------------
+import numpy as np
+import matplotlib.pyplot as plt 
 
-def mspec(samples, winlen = 400, winshift = 200, preempcoeff=0.97, nfft=512, samplingrate=20000)
+def mspec(samples, winlen = 400, winshift = 200, preempcoeff=0.97, nfft=512, samplingrate=20000):
     """Computes Mel Filterbank features.
 
     Args:
@@ -55,6 +57,13 @@ def enframe(samples, winlen, winshift):
         numpy array [N x winlen], where N is the number of windows that fit
         in the input signal
     """
+    N = samples.shape[0]
+    output = np.array(samples[0:winlen])
+    i = winshift
+    for i in range (winshift, N-winlen, winshift) :
+        output = np.vstack((output,samples[i:i+winlen]))
+    return output  
+
     
 def preemp(input, p=0.97):
     """
@@ -140,3 +149,15 @@ def dtw(x, y, dist):
 
     Note that you only need to define the first output for this exercise.
     """
+
+if __name__ == "__main__":
+    example = np.load('/Users/yuhu/Desktop/p4-Speech/Speech-Speaker-Recognition/lab1/dt2119_lab1_2020-03-22/lab1_example.npz',allow_pickle=True)['example'].item()
+    samples = example['samples']
+    samplingrate = int(example['samplingrate']/1000)  #sampling per millisecond
+    winlen = 20*samplingrate
+    winshift = 10*samplingrate
+    emph = enframe(samples,winlen,winshift)
+    plt.pcolormesh(emph.T)
+    # print(emph.shape)
+    plt.show()
+
