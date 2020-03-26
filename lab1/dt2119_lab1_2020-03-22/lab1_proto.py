@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt 
 import scipy.signal as signal
 from scipy.fftpack import fft
+from scipy.fftpack import dct
 import lab1_tools as lab1tools
 # Function given by the exercise ----------------------------------
 
@@ -149,7 +150,7 @@ def cepstrum(input, nceps):
         array of Cepstral coefficients [N x nceps]
     Note: you can use the function dct from scipy.fftpack.realtransforms
     """
-    return fft.dct(input)[:, :nceps]
+    return dct(input)[:, :nceps]
 
 def dtw(x, y, dist):
     """Dynamic Time Warping.
@@ -175,7 +176,7 @@ if __name__ == "__main__":
     winlen = 20*samplingrate
     winshift = 10*samplingrate
 
-    t=5
+    t=7
     fig, ax = plt.subplots(nrows=t,ncols=2,figsize=(t,t+t))
     emph = enframe(samples,winlen,winshift)  
     ax[0][0].pcolormesh(emph.T)
@@ -202,8 +203,14 @@ if __name__ == "__main__":
     ax[4][0].set_title('Mel')
     ax[4][1].pcolormesh(example['mspec'].T)
 
+    cStrum = cepstrum(melSpec,13)
+    ax[5][0].pcolormesh(cStrum.T)
+    ax[5][0].set_title('mfcc')
+    ax[5][1].pcolormesh(example['mfcc'].T)
 
-    
+    ax[6][0].pcolormesh(lab1tools.lifter(cStrum).T)
+    ax[6][0].set_title('lmfcc')
+    ax[6][1].pcolormesh(example['lmfcc'].T)
 
     fig.tight_layout()
     plt.show()
