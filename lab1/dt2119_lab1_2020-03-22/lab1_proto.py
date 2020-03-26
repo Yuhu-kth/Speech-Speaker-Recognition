@@ -1,8 +1,11 @@
   # DT2119, Lab 1 Feature Extraction
-
-# Function given by the exercise ----------------------------------
 import numpy as np
 import matplotlib.pyplot as plt 
+import scipy.signal as signal
+from scipy.fftpack import fft
+import lab1_tools as lab1tools
+# Function given by the exercise ----------------------------------
+
 
 def mspec(samples, winlen = 400, winshift = 200, preempcoeff=0.97, nfft=512, samplingrate=20000):
     """Computes Mel Filterbank features.
@@ -78,6 +81,11 @@ def preemp(input, p=0.97):
         output: array of pre-emphasised speech samples
     Note (you can use the function lfilter from scipy.signal)
     """
+    b = np.array([1, -p])
+    a = np.array([1])
+    output = signal.lfilter(b,a,input,axis=1)# high pass FIR filter y(t)=x(t)-p*x(t-1) 
+    return output 
+
 
 def windowing(input):
     """
@@ -91,6 +99,10 @@ def windowing(input):
     Note (you can use the function hamming from scipy.signal, include the sym=0 option
     if you want to get the same results as in the example)
     """
+    N, M = np.shape(input)
+    output =input*signal.hamming(M, sym=0)
+    return output
+
 
 def powerSpectrum(input, nfft):
     """
@@ -104,6 +116,8 @@ def powerSpectrum(input, nfft):
         array of power spectra [N x nfft]
     Note: you can use the function fft from scipy.fftpack
     """
+    result = np.abs(fft(input, nfft))**2
+    return result
 
 def logMelSpectrum(input, samplingrate):
     """
@@ -119,6 +133,9 @@ def logMelSpectrum(input, samplingrate):
     Note: use the trfbank function provided in lab1_tools.py to calculate the filterbank shapes and
           nmelfilters
     """
+    fbank = lab1tools.trfbank(samplingrate, input.shape[1])
+    return np.log(np.dot(input,fbank.T))
+
 
 def cepstrum(input, nceps):
     """
@@ -132,6 +149,7 @@ def cepstrum(input, nceps):
         array of Cepstral coefficients [N x nceps]
     Note: you can use the function dct from scipy.fftpack.realtransforms
     """
+    return fft.dct(input)[:, :nceps]
 
 def dtw(x, y, dist):
     """Dynamic Time Warping.
@@ -151,13 +169,37 @@ def dtw(x, y, dist):
     """
 
 if __name__ == "__main__":
-    example = np.load('/Users/yuhu/Desktop/p4-Speech/Speech-Speaker-Recognition/lab1/dt2119_lab1_2020-03-22/lab1_example.npz',allow_pickle=True)['example'].item()
+    example = np.load('lab1_example.npz',allow_pickle=True)['example'].item()
     samples = example['samples']
     samplingrate = int(example['samplingrate']/1000)  #sampling per millisecond
     winlen = 20*samplingrate
     winshift = 10*samplingrate
-    emph = enframe(samples,winlen,winshift)
-    plt.pcolormesh(emph.T)
-    # print(emph.shape)
+
+    t=5
+    fig, ax = plt.subplots(nrows=t,figsize=(t,t+t))
+    emph = enframe(samples,winlen,winshift)  
+    ax[0].pcolormesh(emph.T)
+    ax[0].set_title('enframed samples')
+
+    preemp_emph = preemp(emph)
+    ax[1].pcolormesh(preemp_emph.T)
+    ax[1].set_title('preemphasis')
+
+    windows = windowing(preemp_emph)
+    ax[2].pcolormesh(windows.T)
+    ax[2].set_title('hamming window')
+
+    pSpec = powerSpectrum(windows,512)
+    ax[3].pcolormesh(pSpec.T)
+    ax[3].set_title('abs(FFT)$^2$')
+
+    melSpec = logMelSpectrum(pSpec,20000)
+    ax[4].pcolor(melSpec)
+    ax[4].set_title('logMel')
+
+
+    
+
+    fig.tight_layout()
     plt.show()
 
