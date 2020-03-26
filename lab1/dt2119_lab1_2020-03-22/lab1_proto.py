@@ -176,26 +176,31 @@ if __name__ == "__main__":
     winshift = 10*samplingrate
 
     t=5
-    fig, ax = plt.subplots(nrows=t,figsize=(t,t+t))
+    fig, ax = plt.subplots(nrows=t,ncols=2,figsize=(t,t+t))
     emph = enframe(samples,winlen,winshift)  
-    ax[0].pcolormesh(emph.T)
-    ax[0].set_title('enframed samples')
+    ax[0][0].pcolormesh(emph.T)
+    ax[0][0].set_title('enframed samples')
+    ax[0][1].pcolormesh(example['frames'].T)
 
     preemp_emph = preemp(emph)
-    ax[1].pcolormesh(preemp_emph.T)
-    ax[1].set_title('preemphasis')
+    ax[1][0].pcolormesh(preemp_emph.T)
+    ax[1][0].set_title('preemphasis')
+    ax[1][1].pcolormesh(example['preemph'].T)
 
     windows = windowing(preemp_emph)
-    ax[2].pcolormesh(windows.T)
-    ax[2].set_title('hamming window')
+    ax[2][0].pcolormesh(windows.T)
+    ax[2][0].set_title('hamming window')
+    ax[2][1].pcolormesh(example['windowed'].T)
 
     pSpec = powerSpectrum(windows,512)
-    ax[3].pcolormesh(pSpec.T)
-    ax[3].set_title('abs(FFT)$^2$')
+    ax[3][0].pcolormesh(pSpec.T)
+    ax[3][0].set_title('abs(FFT)$^2$')
+    ax[3][1].pcolormesh(example['spec'].T)
 
     melSpec = logMelSpectrum(pSpec,20000)
-    ax[4].pcolor(melSpec)
-    ax[4].set_title('logMel')
+    ax[4][0].pcolor(melSpec.T)
+    ax[4][0].set_title('Mel')
+    ax[4][1].pcolormesh(example['mspec'].T)
 
 
     
