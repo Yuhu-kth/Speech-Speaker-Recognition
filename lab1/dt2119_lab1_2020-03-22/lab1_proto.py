@@ -177,7 +177,7 @@ if __name__ == "__main__":
     winshift = 10*samplingrate
 
     t=7
-    fig, ax = plt.subplots(nrows=t,ncols=2,figsize=(t,t+t))
+    fig, ax = plt.subplots(nrows=t,ncols=2,figsize=(t+3,t*2))
     emph = enframe(samples,winlen,winshift)  
     ax[0][0].pcolormesh(emph.T)
     ax[0][0].set_title('enframed samples')
@@ -213,5 +213,6 @@ if __name__ == "__main__":
     ax[6][1].pcolormesh(example['lmfcc'].T)
 
     fig.tight_layout()
+    plt.savefig("results_of_examples.png")
     plt.show()
 
