@@ -46,7 +46,7 @@ def mfcc(samples, winlen = 400, winshift = 200, preempcoeff=0.97, nfft=512, ncep
     """
     mspecs = mspec(samples, winlen, winshift, preempcoeff, nfft, samplingrate)
     ceps = cepstrum(mspecs, nceps)
-    return lifter(ceps, liftercoeff)
+    return lab1tools.lifter(ceps, liftercoeff)
 
 # Functions to be implemented ----------------------------------
 
@@ -170,6 +170,7 @@ def dtw(x, y, dist):
     """
 
 if __name__ == "__main__":
+    data = np.load('lab1_data.npz',allow_pickle=True)['data']
     example = np.load('lab1_example.npz',allow_pickle=True)['example'].item()
     samples = example['samples']
     samplingrate = int(example['samplingrate']/1000)  #sampling per millisecond
@@ -215,4 +216,24 @@ if __name__ == "__main__":
     fig.tight_layout()
     plt.savefig("results_of_examples.png")
     plt.show()
+
+    #feature correlation
+    mfccFeatures = mfcc(data[0]['samples'])
+    mspecFeatures = mspec(data[0]['samples'])
+
+    for i in range(1,len(data)):
+        mfccFeatures = np.vstack((mfccFeatures,mfcc(data[i]['samples'])))
+        mspecFeatures = np.vstack((mspecFeatures,mspec(data[i]['samples'])))
+
+    mfccCorr = np.corrcoef(mfccFeatures.T)
+    plt.title("MFCC Features correlations")
+    plt.pcolormesh(mfccCorr)
+    plt.show()
+
+
+    mspecCorr = np.corrcoef(mspecFeatures.T)
+    plt.title("MSPEC Features correlations")
+    plt.pcolormesh(mspecCorr)
+    plt.show()
+
 
