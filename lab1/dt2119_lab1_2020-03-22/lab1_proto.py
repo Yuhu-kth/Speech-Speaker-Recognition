@@ -5,6 +5,7 @@ import scipy.signal as signal
 from scipy.fftpack import fft
 from scipy.fftpack import dct
 import lab1_tools as lab1tools
+from sklearn import *
 # Function given by the exercise ----------------------------------
 
 
@@ -215,7 +216,7 @@ if __name__ == "__main__":
 
     fig.tight_layout()
     plt.savefig("results_of_examples.png")
-    plt.show()
+    # plt.show()
 
     #feature correlation
     mfccFeatures = mfcc(data[0]['samples'])
@@ -228,12 +229,20 @@ if __name__ == "__main__":
     mfccCorr = np.corrcoef(mfccFeatures.T)
     plt.title("MFCC Features correlations")
     plt.pcolormesh(mfccCorr)
-    plt.show()
+    # plt.show()
 
 
     mspecCorr = np.corrcoef(mspecFeatures.T)
     plt.title("MSPEC Features correlations")
     plt.pcolormesh(mspecCorr)
-    plt.show()
+    # plt.show()
 
-
+    #Explore speech segments with Clustering
+    Components = [4, 18, 16, 32]
+    for i in range(4):
+        n = Components[i]
+        gmm = mixture.GaussianMixture(n,'diag')
+        gmm.fit(mfccFeatures)
+        output = gmm.predict_proba(mfccFeatures)
+        plt.pcolormesh(output)
+        plt.show()
