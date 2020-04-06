@@ -5,7 +5,7 @@ import scipy.signal as signal
 from scipy.fftpack import fft
 from scipy.fftpack import dct
 import lab1_tools as lab1tools
-from sklearn import *
+from scipy.spatial.distance import cdist
 # Function given by the exercise ----------------------------------
 
 
@@ -153,7 +153,7 @@ def cepstrum(input, nceps):
     """
     return dct(input)[:, :nceps]
 
-def dtw(x, y, dist):
+def dtw(x, y, dist='euclidean',flag=False):
     """Dynamic Time Warping.
 
     Args:
@@ -169,80 +169,29 @@ def dtw(x, y, dist):
 
     Note that you only need to define the first output for this exercise.
     """
+    LD = cdist(x,y,dist)
+    N,M = LD.shape
+    AD = np.zeros_like(LD)
+    backtrace = np.zeros((N,M,2))
 
-if __name__ == "__main__":
-    data = np.load('lab1_data.npz',allow_pickle=True)['data']
-    example = np.load('lab1_example.npz',allow_pickle=True)['example'].item()
-    samples = example['samples']
-    samplingrate = int(example['samplingrate']/1000)  #sampling per millisecond
-    winlen = 20*samplingrate
-    winshift = 10*samplingrate
-
-    t=7
-    fig, ax = plt.subplots(nrows=t,ncols=2,figsize=(t+3,t*2))
-    emph = enframe(samples,winlen,winshift)  
-    ax[0][0].pcolormesh(emph.T)
-    ax[0][0].set_title('enframed samples')
-    ax[0][1].pcolormesh(example['frames'].T)
-
-    preemp_emph = preemp(emph)
-    ax[1][0].pcolormesh(preemp_emph.T)
-    ax[1][0].set_title('preemphasis')
-    ax[1][1].pcolormesh(example['preemph'].T)
-
-    windows = windowing(preemp_emph)
-    ax[2][0].pcolormesh(windows.T)
-    ax[2][0].set_title('hamming window')
-    ax[2][1].pcolormesh(example['windowed'].T)
-
-    pSpec = powerSpectrum(windows,512)
-    ax[3][0].pcolormesh(pSpec.T)
-    ax[3][0].set_title('abs(FFT)$^2$')
-    ax[3][1].pcolormesh(example['spec'].T)
-
-    melSpec = logMelSpectrum(pSpec,20000)
-    ax[4][0].pcolor(melSpec.T)
-    ax[4][0].set_title('Mel')
-    ax[4][1].pcolormesh(example['mspec'].T)
-
-    cStrum = cepstrum(melSpec,13)
-    ax[5][0].pcolormesh(cStrum.T)
-    ax[5][0].set_title('mfcc')
-    ax[5][1].pcolormesh(example['mfcc'].T)
-
-    ax[6][0].pcolormesh(lab1tools.lifter(cStrum).T)
-    ax[6][0].set_title('lmfcc')
-    ax[6][1].pcolormesh(example['lmfcc'].T)
-
-    fig.tight_layout()
-    plt.savefig("results_of_examples.png")
-    # plt.show()
-
-    #feature correlation
-    mfccFeatures = mfcc(data[0]['samples'])
-    mspecFeatures = mspec(data[0]['samples'])
-
-    for i in range(1,len(data)):
-        mfccFeatures = np.vstack((mfccFeatures,mfcc(data[i]['samples'])))
-        mspecFeatures = np.vstack((mspecFeatures,mspec(data[i]['samples'])))
-
-    mfccCorr = np.corrcoef(mfccFeatures.T)
-    plt.title("MFCC Features correlations")
-    plt.pcolormesh(mfccCorr)
-    # plt.show()
+    direction = [[-1,0],[-1,-1],[0,-1]]
+    for i in range(N):
+        for j in range(M):
+            t = np.argmin([AD[i-1,j],AD[i-1,j-1],AD[i,j-1]])
+            AD[i,j] = LD[i,j] + min([AD[i-1,j],AD[i-1,j-1],AD[i,j-1]])
+            backtrace[i,j] = direction[t]
+    d = AD[-1,-1]
+    if flag:
+        return d/(len(x)+len(y))
 
 
-    mspecCorr = np.corrcoef(mspecFeatures.T)
-    plt.title("MSPEC Features correlations")
-    plt.pcolormesh(mspecCorr)
-    # plt.show()
+    path = []
+    p= N-1
+    q= M-1
+    while p>=0 and q>=0:
+        path.append([p,q])
+        p,q = np.array([p,q])+np.array(backtrace[p,q],dtype=int)
+        
+    
 
-    #Explore speech segments with Clustering
-    Components = [4, 18, 16, 32]
-    for i in range(4):
-        n = Components[i]
-        gmm = mixture.GaussianMixture(n,'diag')
-        gmm.fit(mfccFeatures)
-        output = gmm.predict_proba(mfccFeatures)
-        plt.pcolormesh(output)
-        plt.show()
+    return d/(len(x)+len(y)),LD,AD,np.array(path)
