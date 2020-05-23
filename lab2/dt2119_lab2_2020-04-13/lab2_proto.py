@@ -108,12 +108,21 @@ def forward(log_emlik, log_startprob, log_transmat):
 
     Args:
         log_emlik: NxM array of emission log likelihoods, N frames, M states
-        log_startprob: log probability to start in state i
-        log_transmat: log transition probability from state i to j
+        log_startprob: log probability to start in state i M
+        log_transmat: log transition probability from state i to j MxM
 
     Output:
         forward_prob: NxM array of forward log probabilities for each of the M states in the model
     """
+    logPi=log_startprob
+    logB=log_emlik
+    logA=log_transmat
+    alpha = np.zeros_like(logB)
+    alpha[0]=logB[0]+logPi
+    for i in range(1,logB.shape[0]):
+        alpha[i]=logsumexp(alpha[i-1]+logA+logB[i])
+    return alpha
+
 
 def backward(log_emlik, log_startprob, log_transmat):
     """Backward (beta) probabilities in log domain.
@@ -126,6 +135,15 @@ def backward(log_emlik, log_startprob, log_transmat):
     Output:
         backward_prob: NxM array of backward log probabilities for each of the M states in the model
     """
+    N, M = log_emlik.shape
+    logPi=log_startprob
+    logB=log_emlik
+    logA=log_transmat
+    beta = np.zeros_like(logB)
+    beta[0]=logB[0]+logPi
+    for t in range(N-2,-1,-1):
+        beta[t]=logsumexp(beta[t+1]+logA+logB[t+1])
+    return beta
 
 def viterbi(log_emlik, log_startprob, log_transmat, forceFinalState=True):
     """Viterbi path.
