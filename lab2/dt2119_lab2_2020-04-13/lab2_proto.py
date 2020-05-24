@@ -37,7 +37,7 @@ def concatTwoHMMs(hmm1, hmm2):
 
     transmat1 = hmm1["transmat"]
     transmat2 = hmm2["transmat"]
-    part1 = np.hstack((transmat1[0:-1,0:-1],np.vstack((np.zeros((transmat1.shape[0]-2,startprob2.shape[0])),transmat1[-2,-1]*startprob2))))
+    part1 = np.hstack((transmat1[0:-1,0:-1],np.outer(transmat1[:-1,-1],startprob2)))
     part2 = np.hstack((np.zeros((transmat2.shape[0],transmat1.shape[1]-1)),transmat2))
     transmat = np.vstack((part1,part2))
     
@@ -49,8 +49,8 @@ def concatTwoHMMs(hmm1, hmm2):
     covars2 = hmm2["covars"]
     covars = np.vstack((covars1,covars2))
 
-    dict = {'name':name,'startprob':startprob,'transmat':transmat,'means':means,'covars':covars}
-    return dict
+    dict_ = {'name':name,'startprob':startprob,'transmat':transmat,'means':means,'covars':covars}
+    return dict_
     
 
 # this is already implemented, but based on concat2HMMs() above
@@ -114,13 +114,14 @@ def forward(log_emlik, log_startprob, log_transmat):
     Output:
         forward_prob: NxM array of forward log probabilities for each of the M states in the model
     """
-    logPi=log_startprob
+    logPi=log_startprob[:-1]
     logB=log_emlik
-    logA=log_transmat
+    logA=log_transmat[:-1,:-1]
     alpha = np.zeros_like(logB)
     alpha[0]=logB[0]+logPi
     for i in range(1,logB.shape[0]):
-        alpha[i]=logsumexp(alpha[i-1]+logA.T+logB[i])
+        for j in range(logA.shape[0]):
+            alpha[i][j]=logsumexp(alpha[i-1]+logA[:,j]+logB[i][j])
     return alpha
 
 
@@ -136,13 +137,14 @@ def backward(log_emlik, log_startprob, log_transmat):
         backward_prob: NxM array of backward log probabilities for each of the M states in the model
     """
     N, M = log_emlik.shape
-    logPi=log_startprob
+    logPi=log_startprob[:-1]
     logB=log_emlik
-    logA=log_transmat
+    logA=log_transmat[:-1,:-1]
     beta = np.zeros_like(logB)
-    beta[0]=logB[0]+logPi
     for t in range(N-2,-1,-1):
-        beta[t]=logsumexp(beta[t+1]+logA+logB[t+1])
+        for j in range(M):
+            beta[t][j]=logsumexp(beta[t+1]+logA[j]+logB[t+1])
+
     return beta
 
 def viterbi(log_emlik, log_startprob, log_transmat, forceFinalState=True):
@@ -159,6 +161,17 @@ def viterbi(log_emlik, log_startprob, log_transmat, forceFinalState=True):
         viterbi_loglik: log likelihood of the best path
         viterbi_path: best path
     """
+    N, M = log_emlik.shape
+    logPi=log_startprob[:-1]
+    logB=log_emlik
+    logA=log_transmat[:-1,:-1]
+    theta = np.zeros_like(logB)
+    path = np.zeros(N,dtype=np.int64)
+    theta[0] = logPi + logB[0]
+    for t in range(1,N):
+        theta[t]=np.max(theta[t-1]+logA.T+logB[t],axis=0)
+    #@TO-DO:test Numpy内部有溢出
+
 
 def statePosteriors(log_alpha, log_beta):
     """State posterior (gamma) probabilities in log domain.
