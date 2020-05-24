@@ -120,7 +120,7 @@ def forward(log_emlik, log_startprob, log_transmat):
     alpha = np.zeros_like(logB)
     alpha[0]=logB[0]+logPi
     for i in range(1,logB.shape[0]):
-        alpha[i]=logsumexp(alpha[i-1]+logA+logB[i])
+        alpha[i]=logsumexp(alpha[i-1]+logA.T+logB[i])
     return alpha
 
 
