@@ -120,8 +120,7 @@ def forward(log_emlik, log_startprob, log_transmat):
     alpha = np.zeros_like(logB)
     alpha[0]=logB[0]+logPi
     for i in range(1,logB.shape[0]):
-        for j in range(logA.shape[0]):
-            alpha[i][j]=logsumexp(alpha[i-1]+logA[:,j]+logB[i][j])
+        alpha[i]=logsumexp(alpha[i-1]+logA.T+logB[i].reshape(-1,1),axis=1)
     return alpha
 
 
@@ -142,8 +141,7 @@ def backward(log_emlik, log_startprob, log_transmat):
     logA=log_transmat[:-1,:-1]
     beta = np.zeros_like(logB)
     for t in range(N-2,-1,-1):
-        for j in range(M):
-            beta[t][j]=logsumexp(beta[t+1]+logA[j]+logB[t+1])
+        beta[t]=logsumexp(beta[t+1]+logA+logB[t+1].reshape(-1,1),axis=1)
 
     return beta
 
@@ -166,12 +164,20 @@ def viterbi(log_emlik, log_startprob, log_transmat, forceFinalState=True):
     logB=log_emlik
     logA=log_transmat[:-1,:-1]
     theta = np.zeros_like(logB)
+    prev = np.zeros(logB.shape,dtype=np.int64)
     path = np.zeros(N,dtype=np.int64)
     theta[0] = logPi + logB[0]
     for t in range(1,N):
-        theta[t]=np.max(theta[t-1]+logA.T+logB[t],axis=0)
-    #@TO-DO:test Numpy内部有溢出
-
+        temp = theta[t-1]+logA.T+logB[t].reshape(-1,1)
+        theta[t]=np.max(temp,axis=1)
+        prev[t]=np.argmax(temp,axis=1)
+    if forceFinalState:
+        path[-1] = M-1
+    else:
+        path[-1] = np.argmax(prev[-1])
+    for i in range(N-2,-1,-1):
+        path[i] = prev[i+1][path[i+1]]
+    return np.max(theta[-1]),path
 
 def statePosteriors(log_alpha, log_beta):
     """State posterior (gamma) probabilities in log domain.
@@ -201,3 +207,19 @@ def updateMeanAndVar(X, log_gamma, varianceFloor=5.0):
          means: MxD mean vectors for each state
          covars: MxD covariance (variance) vectors for each state
     """
+    D = X.shape[1]
+    N, M = log_gamma.shape
+    means = np.zeros((M, D))
+    covars = np.zeros((M, D))
+    
+    gamma = np.exp(log_gamma)
+
+    means = gamma.T[:,:,np.newaxis]*X[np.newaxis,:,:] # NxMxD
+    means = means .sum(1)
+    means = means/ gamma.sum(0).T[:,np.newaxis]
+    
+    X_mu = X[:,np.newaxis,:]-means[np.newaxis,:,:]# NxMxD
+    X_mu_2 = X_mu *X_mu
+    covars = (X_mu_2*gamma[:,:,np.newaxis]).sum(0)/ gamma.sum(0).T[:,np.newaxis]
+    covars[covars < varianceFloor] = varianceFloor
+    return means,covars
