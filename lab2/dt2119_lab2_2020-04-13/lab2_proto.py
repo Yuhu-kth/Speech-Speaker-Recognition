@@ -37,7 +37,7 @@ def concatTwoHMMs(hmm1, hmm2):
 
     transmat1 = hmm1["transmat"]
     transmat2 = hmm2["transmat"]
-    part1 = np.hstack((transmat1[0:-1,0:-1],np.vstack((np.zeros((transmat1.shape[0]-2,startprob2.shape[0])),transmat1[-2,-1]*startprob2))))
+    part1 = np.hstack((transmat1[0:-1,0:-1],np.outer(transmat1[:-1,-1],startprob2)))
     part2 = np.hstack((np.zeros((transmat2.shape[0],transmat1.shape[1]-1)),transmat2))
     transmat = np.vstack((part1,part2))
     
@@ -49,8 +49,8 @@ def concatTwoHMMs(hmm1, hmm2):
     covars2 = hmm2["covars"]
     covars = np.vstack((covars1,covars2))
 
-    dict = {'name':name,'startprob':startprob,'transmat':transmat,'means':means,'covars':covars}
-    return dict
+    dict_ = {'name':name,'startprob':startprob,'transmat':transmat,'means':means,'covars':covars}
+    return dict_
     
 
 # this is already implemented, but based on concat2HMMs() above
@@ -108,12 +108,22 @@ def forward(log_emlik, log_startprob, log_transmat):
 
     Args:
         log_emlik: NxM array of emission log likelihoods, N frames, M states
-        log_startprob: log probability to start in state i
-        log_transmat: log transition probability from state i to j
+        log_startprob: log probability to start in state i M
+        log_transmat: log transition probability from state i to j MxM
 
     Output:
         forward_prob: NxM array of forward log probabilities for each of the M states in the model
     """
+    logPi=log_startprob[:-1]
+    logB=log_emlik
+    logA=log_transmat[:-1,:-1]
+    alpha = np.zeros_like(logB)
+    alpha[0]=logB[0]+logPi
+    for i in range(1,logB.shape[0]):
+        for j in range(logA.shape[0]):
+            alpha[i][j]=logsumexp(alpha[i-1]+logA[:,j]+logB[i][j])
+    return alpha
+
 
 def backward(log_emlik, log_startprob, log_transmat):
     """Backward (beta) probabilities in log domain.
@@ -126,6 +136,16 @@ def backward(log_emlik, log_startprob, log_transmat):
     Output:
         backward_prob: NxM array of backward log probabilities for each of the M states in the model
     """
+    N, M = log_emlik.shape
+    logPi=log_startprob[:-1]
+    logB=log_emlik
+    logA=log_transmat[:-1,:-1]
+    beta = np.zeros_like(logB)
+    for t in range(N-2,-1,-1):
+        for j in range(M):
+            beta[t][j]=logsumexp(beta[t+1]+logA[j]+logB[t+1])
+
+    return beta
 
 def viterbi(log_emlik, log_startprob, log_transmat, forceFinalState=True):
     """Viterbi path.
@@ -141,6 +161,26 @@ def viterbi(log_emlik, log_startprob, log_transmat, forceFinalState=True):
         viterbi_loglik: log likelihood of the best path
         viterbi_path: best path
     """
+    N, M = log_emlik.shape
+    logPi=log_startprob[:-1]
+    logB=log_emlik
+    logA=log_transmat[:-1,:-1]
+    theta = np.zeros_like(logB)
+    prev = np.zeros(logB.shape,dtype=np.int64)
+    path = np.zeros(N,dtype=np.int64)
+    theta[0] = logPi + logB[0]
+    for t in range(1,N):
+        for i in range(M):
+            temp = theta[t-1]+logA.T[i]+logB[t][i]
+            theta[t][i]=np.max(temp)
+            prev[t][i]=np.argmax(temp)
+    if forceFinalState:
+        path[-1] = M-1
+    else:
+        path[-1] = np.argmax(prev[-1])
+    for i in range(N-2,-1,-1):
+        path[i] = prev[i+1][path[i+1]]
+    return np.max(theta[-1]),path
 
 def statePosteriors(log_alpha, log_beta):
     """State posterior (gamma) probabilities in log domain.
@@ -170,3 +210,13 @@ def updateMeanAndVar(X, log_gamma, varianceFloor=5.0):
          means: MxD mean vectors for each state
          covars: MxD covariance (variance) vectors for each state
     """
+    N,D=X.shape
+    M=log_gamma.shape[1]
+    means=np.zeros((M,D))
+    covars=np.zeros((M,D))
+    gamma=np.exp(log_gamma)
+    for m in range(M):
+        means[m]=np.sum(gamma[:,m].reshape(-1,1)*X,axis=0)/np.sum(gamma[:,m])
+        covars[m]=np.sum(gamma[:,m].reshape(-1,1)*np.power((X-means[m]),2),axis=0)/np.sum(gamma[:,m])
+    covars[covars<varianceFloor]=varianceFloor
+    return means,covars
