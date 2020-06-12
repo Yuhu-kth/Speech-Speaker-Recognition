@@ -2,16 +2,23 @@ import numpy as np
 from lab3_tools import *
 
 def words2phones(wordList, pronDict, addSilence=True, addShortPause=True):
-    """ word2phones: converts word level to phone level transcription adding silence
+   """ word2phones: converts word level to phone level transcription adding silence
 
-    Args:
-       wordList: list of word symbols
-       pronDict: pronunciation dictionary. The keys correspond to words in wordList
-       addSilence: if True, add initial and final silence
-       addShortPause: if True, add short pause model "sp" at end of each word
-    Output:
-       list of phone symbols
-    """
+   Args:
+      wordList: list of word symbols
+      pronDict: pronunciation dictionary. The keys correspond to words in wordList
+      addSilence: if True, add initial and final silence
+      addShortPause: if True, add short pause model "sp" at end of each word
+   Output:
+      list of phone symbols
+   """
+   phone = ['sil']
+   for i, element in enumerate(wordList):
+      phone.extend(pronDict[element])
+      phone.append('sp')
+   phone.append('sil')
+   return phone
+
 
 def forcedAlignment(lmfcc, phoneHMMs, phoneTrans):
     """ forcedAlignmen: aligns a phonetic transcription at the state level
