@@ -13,7 +13,7 @@ def words2phones(wordList, pronDict, addSilence=True, addShortPause=True):
       list of phone symbols
    """
    phone = ['sil']
-   for i, element in enumerate(wordList):
+   for element in range(wordList):
       phone.extend(pronDict[element])
       phone.append('sp')
    phone.append('sil')
